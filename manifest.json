@@ -1,0 +1,11 @@
+{
+	"id": "yunseul",
+	"name": "Yunseul",
+	"version": "0.1.0",
+	"minAppVersion": "1.7.2",
+	"description": "Yunseul (윤슬) — sparkling ripples of clarity across your Obsidian vault. Chat with your notes using LM Studio or Claude Code.",
+	"author": "zaemyung",
+	"authorUrl": "https://zaemyung.github.io/",
+	"fundingUrl": "https://buymeacoffee.com/zaemyung",
+	"isDesktopOnly": true
+}

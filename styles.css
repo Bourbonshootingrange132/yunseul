@@ -1,0 +1,1323 @@
+/*
+ * Yunseul styles. Operator's Console — bubble-less typographic design.
+ * Uses Obsidian CSS variables exclusively where possible so the theme
+ * honors the user's color scheme.
+ *
+ * Variable deferral contract: Yunseul honors --interactive-accent.
+ * Users wanting a community-theme color (Catppuccin mauve etc.) should
+ * set their Obsidian Settings → Appearance → Accent color.
+ *
+ * Structural invariants:
+ *   - The 7ch left mono gutter is load-bearing. Role labels must be
+ *     ≤7 chars. Adding a longer role would break the design.
+ *   - --yunseul-accent-muted is only valid as a background fill behind
+ *     already-contrasting text. Never use as a border in isolation, and
+ *     never as a text color.
+ *   - The streaming caret follows --text-normal (not the accent token)
+ *     so it never clashes with theme accents.
+ */
+
+.yunseul-chat-root,
+.yunseul-append-modal,
+.yunseul-index-modal,
+.yunseul-reset-modal {
+	/* Accent defers to Obsidian's --interactive-accent. The hex fallback
+	 * (#2C7AAB) is darker than the original brand #3b8dbf so it passes
+	 * WCAG AA 4.5:1 against --background-primary in the fallback case. */
+	--yunseul-accent: var(--interactive-accent, #2C7AAB);
+	/* Separate text token: designers must use this token whenever the
+	 * accent color is applied to text (never the rail/dot/button-bg
+	 * token), so a future contrast-fix can lighten the UI accent
+	 * without touching text. */
+	--yunseul-accent-text: var(--yunseul-accent);
+	/* RGB triplet retained for snippet authors who want to override the
+	 * muted tint directly. Default consumers should rely on the
+	 * color-mix tint below, which tracks --yunseul-accent automatically
+	 * (so theme accents flow through to the muted halo). */
+	--yunseul-accent-rgb: 44, 122, 171;
+	/* Track the resolved accent via color-mix so theme switches (Catppuccin
+	 * mauve, Things rose, etc.) recolor the focus halo / status-dot ring
+	 * in-family. Fallback to the static rgba tint for older Electron. */
+	--yunseul-accent-muted: color-mix(in srgb, var(--yunseul-accent) 12%, transparent);
+	--yunseul-accent-fg: var(--text-on-accent, #ffffff);
+	/* Compound fallback so the rail stays visible on themes (Border,
+	 * AnuPpuccin) where --background-modifier-border is translucent. */
+	--yunseul-rail: var(--background-modifier-border-hover, var(--background-modifier-border, currentColor));
+	--yunseul-gutter-ch: 10;
+	/* Reduced from 0.08em to leave WCAG 1.4.12 user-letter-spacing
+	 * headroom (spec allows up to +0.12em from user agents). */
+	--yunseul-role-tracking: 0.06em;
+	--yunseul-wordmark-tracking: 0.1em;
+	--yunseul-caret-blink-rate: 1.4s;
+	--yunseul-connection-pulse-rate: 2s;
+}
+
+.theme-dark .yunseul-chat-root,
+.theme-dark .yunseul-append-modal,
+.theme-dark .yunseul-index-modal,
+.theme-dark .yunseul-reset-modal {
+	--yunseul-accent: var(--interactive-accent, #5fa3d4);
+	--yunseul-accent-rgb: 95, 163, 212;
+}
+
+/* Token-level reduced-motion override. Every downstream animation
+ * that reads these tokens halts automatically without per-rule guards.
+ * `:root` is included so any future element that reads these tokens —
+ * even outside the four scoped roots — halts automatically. */
+@media (prefers-reduced-motion: reduce) {
+	:root,
+	.yunseul-chat-root,
+	.yunseul-append-modal,
+	.yunseul-index-modal,
+	.yunseul-reset-modal {
+		--yunseul-caret-blink-rate: 0s;
+		--yunseul-connection-pulse-rate: 0s;
+	}
+}
+
+/* Screen-reader-only utility. Used for icon-conveyed state labels
+ * (e.g. connection dot text). */
+.yunseul-sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+/* Tabular-nums utility. Belt-and-braces: feature-settings AND variant. */
+.yunseul-tnum {
+	font-feature-settings: 'tnum';
+	font-variant-numeric: tabular-nums;
+}
+
+/* Connection-dot color classes. Match the actual ConnectionState enum
+ * ('unknown' | 'ready' | 'offline') — NO 'reconnecting' state.
+ *
+ * Color is paired with a SHAPE disambiguator on each state (audit A5 /
+ * WCAG 1.4.1) so colorblind users can tell the three states apart
+ * without hue:
+ *   - ready    → filled green circle with a tiny lighter inset dot
+ *   - offline  → filled red circle with a centered diagonal slash
+ *   - unknown  → outlined circle (no fill)
+ * The data-state attribute is set from ChatHeader.ts in lockstep with
+ * the class toggles so CSS authors can switch on either selector. */
+.yunseul-status-dot {
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	vertical-align: middle;
+	position: relative;
+	/* 1px halo against translucent surfaces. */
+	box-shadow: 0 0 0 1px var(--background-primary);
+}
+
+.yunseul-status-dot.is-ready {
+	background: var(--color-green, #2ea043);
+}
+
+/* Ready: inset highlight dot — confirms "filled + alive" without relying
+ * on hue. The pseudo carries `content:""` so screen readers ignore it. */
+.yunseul-status-dot.is-ready::after {
+	content: "";
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	width: 2px;
+	height: 2px;
+	border-radius: 50%;
+	background: var(--background-primary);
+}
+
+.yunseul-status-dot.is-offline {
+	background: var(--color-red, #cf222e);
+}
+
+/* Offline: a 1px diagonal slash through the dot — the universally
+ * recognized "prohibited" shape. Pseudo carries `content:""` so AT
+ * doesn't announce it; the sr-only span next to the dot already says
+ * "Disconnected". */
+.yunseul-status-dot.is-offline::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: -1px;
+	right: -1px;
+	height: 1px;
+	background: var(--background-primary);
+	transform: rotate(45deg);
+}
+
+.yunseul-status-dot.is-unknown {
+	background: transparent;
+	border: 1px solid var(--text-faint);
+	/* Subtract 2px from outer dimensions to account for the border. */
+	width: 6px;
+	height: 6px;
+}
+
+/* Connection-dot pulse — only when streaming (gated by .is-streaming
+ * modifier set from AIChatView). Named keyframe so themes can override. */
+@media (prefers-reduced-motion: no-preference) {
+	.yunseul-status-dot.is-streaming {
+		animation: yunseul-connection-pulse var(--yunseul-connection-pulse-rate) ease-in-out infinite;
+	}
+}
+
+@keyframes yunseul-connection-pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.6; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.yunseul-status-dot.is-streaming {
+		animation: none;
+		opacity: 1;
+	}
+}
+
+/* Root chat panel. */
+.yunseul-chat-root {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	padding: 0;
+}
+
+/* ============================================================
+ * Offline banner — sits at the top of the chat panel, ABOVE both
+ * header rows. role=alert.
+ * ============================================================ */
+.yunseul-banner {
+	background-color: var(--background-modifier-error, #5a1d1d);
+	color: var(--text-on-accent, #ffffff);
+	padding: 8px 12px;
+	font-size: var(--font-ui-small);
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+}
+
+.yunseul-banner button {
+	background-color: transparent;
+	color: inherit;
+	border: 1px solid currentColor;
+	padding: 4px 10px;
+	cursor: pointer;
+	border-radius: 3px;
+}
+
+.yunseul-banner-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.yunseul-banner-title {
+	font-weight: 500;
+}
+
+.yunseul-banner-detail {
+	flex: 1 1 auto;
+}
+
+/* ============================================================
+ * Header — wordmark + actions + status strip
+ * ============================================================ */
+.yunseul-chat-header {
+	display: flex;
+	flex-direction: column;
+}
+
+.yunseul-header-bar {
+	display: flex;
+	align-items: center;
+	height: 32px;
+	padding: 0 8px 0 12px;
+	gap: 6px;
+}
+
+.yunseul-wordmark {
+	font-family: var(--font-monospace);
+	font-size: 12px;
+	font-weight: 500;
+	letter-spacing: var(--yunseul-wordmark-tracking);
+	color: var(--text-normal);
+	text-transform: uppercase;
+	margin: 0;
+	padding: 0;
+	flex: 0 0 auto;
+}
+
+.yunseul-header-actions {
+	margin-left: auto;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.yunseul-header-btn {
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: var(--yunseul-role-tracking);
+	text-transform: uppercase;
+	color: var(--text-muted);
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 3px;
+	padding: 6px 10px;
+	cursor: pointer;
+	line-height: 1;
+}
+
+.yunseul-header-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+	border-color: var(--background-modifier-border);
+}
+
+.yunseul-header-btn:focus-visible {
+	outline: 2px solid var(--yunseul-accent);
+	outline-offset: 2px;
+}
+
+/* Status strip — machine-console readout. Promoted from --text-faint
+ * to --text-muted (with weight 500) so it meets AA on Minimal/AnuPpuccin. */
+.yunseul-status-strip {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-height: 32px;
+	padding: 4px 12px 10px 12px;
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	font-weight: 500;
+	color: var(--text-muted);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.yunseul-status-segment {
+	font: inherit;
+	color: inherit;
+	background: transparent;
+	border: none;
+	padding: 4px 6px;
+	margin: 0;
+	cursor: pointer;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 32ch;
+	border-radius: 3px;
+}
+
+.yunseul-status-segment:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover, transparent);
+}
+
+.yunseul-status-segment:focus-visible {
+	outline: 2px solid var(--yunseul-accent);
+	outline-offset: 2px;
+}
+
+.yunseul-status-sep {
+	color: var(--text-faint);
+	user-select: none;
+}
+
+/* ============================================================
+ * Transcript — bubble-less, 24px gap between turns
+ * ============================================================ */
+.yunseul-transcript {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	padding: 16px 12px 0 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
+}
+
+/* Bubble structure: 1-col grid (gutter row + content row).
+ * Rail (assistant only) is absolutely-positioned beside content.
+ * No background, no border-radius, no bubble box. */
+.yunseul-msg {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	row-gap: 6px;
+	color: var(--text-normal);
+	max-width: 100%;
+	position: relative;
+}
+
+.yunseul-msg-user,
+.yunseul-msg-assistant,
+.yunseul-msg-system {
+	background-color: transparent;
+}
+
+/* Fade-in: only one animation across the whole UI besides caret + pulse. */
+@media (prefers-reduced-motion: no-preference) {
+	.yunseul-msg {
+		animation: yunseul-msg-fade-in 200ms ease-out both;
+	}
+}
+
+@keyframes yunseul-msg-fade-in {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.yunseul-msg {
+		animation: none;
+		opacity: 1;
+	}
+}
+
+/* Gutter row: 7ch mono role label + em-dash filler + timestamp. */
+.yunseul-msg-gutter {
+	display: flex;
+	align-items: baseline;
+	gap: 4px;
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: var(--yunseul-role-tracking);
+	text-transform: uppercase;
+	color: var(--text-faint);
+}
+
+.yunseul-msg-role {
+	/* `var() + unit` is invalid CSS — concatenating a `ch` suffix after
+	 * the var() expression makes the parser discard the declaration and
+	 * collapses the 7ch mono gutter. Apply the unit via calc() so the
+	 * declaration stays valid. */
+	min-width: calc(var(--yunseul-gutter-ch, 7) * 1ch);
+	display: inline-block;
+}
+
+.yunseul-msg-gutter-fill {
+	flex: 1 1 auto;
+	overflow: hidden;
+	color: var(--text-faint);
+	user-select: none;
+}
+
+.yunseul-msg-ts {
+	flex: 0 0 auto;
+}
+
+/* Assistant left rail. Sits to the LEFT of the content column.
+ * User turns omit the rail entirely (no element rendered). */
+.yunseul-msg-assistant .yunseul-msg-content {
+	border-left: 1px solid var(--yunseul-rail);
+	padding-left: 10px;
+	margin-left: -2px;
+	transition: border-color 120ms ease, border-left-width 120ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.yunseul-msg-assistant .yunseul-msg-content {
+		transition: none;
+	}
+}
+
+/* Rail element is a structural marker (kept for query selectors in JS
+ * + future per-rail effects); the visible rail uses the content border. */
+.yunseul-msg-rail {
+	display: none;
+}
+
+.yunseul-msg-content {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+}
+
+.yunseul-msg-body {
+	font-family: var(--font-text);
+	font-size: 14px;
+	line-height: 1.55;
+	word-break: break-word;
+	color: var(--text-normal);
+}
+
+.yunseul-msg-body code,
+.yunseul-msg-body pre {
+	background: var(--background-secondary);
+}
+
+/* Hover/focus: thicken rail to 2px in accent. Both for keyboard
+ * accessibility (WCAG 1.4.13). The rail is the content column's
+ * left border; we thicken it from 1px to 2px and switch color. */
+.yunseul-msg-assistant:hover .yunseul-msg-content,
+.yunseul-msg-assistant:focus-within .yunseul-msg-content,
+.yunseul-msg-assistant.is-active .yunseul-msg-content {
+	border-left-width: 2px;
+	border-left-color: var(--yunseul-accent);
+	padding-left: 9px;
+}
+
+/* Action bar — text-only mono labels. Hover-revealed (also focus).
+ * `visibility: hidden` (paired with opacity:0 for the fade) removes the
+ * bar from the keyboard tab order AND from the accessibility tree —
+ * `opacity: 0` alone left phantom focus stops for keyboard users
+ * (audit A3). Visibility is a discrete property; the visual fade still
+ * runs on `opacity` so reduced-motion users get an instant snap. */
+.yunseul-msg-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 12px;
+	visibility: hidden;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 120ms ease;
+}
+
+.yunseul-msg:hover .yunseul-msg-actions,
+.yunseul-msg:focus-within .yunseul-msg-actions {
+	visibility: visible;
+	opacity: 1;
+	pointer-events: auto;
+}
+
+@media (hover: none) {
+	.yunseul-msg-actions {
+		visibility: visible;
+		opacity: 1;
+		pointer-events: auto;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	/* Disable the 120ms opacity fade only; DO NOT force visibility:visible
+	 * here — that would put the action bar back in the tab order /
+	 * accessibility tree for reduced-motion users and re-introduce the A3
+	 * phantom-focus regression. The hover/focus-within rule above is the
+	 * single source of truth for when the bar becomes visible. */
+	.yunseul-msg-actions {
+		transition: none;
+	}
+}
+
+.yunseul-msg-action {
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: var(--yunseul-role-tracking);
+	text-transform: uppercase;
+	color: var(--text-muted);
+	background: transparent;
+	border: none;
+	padding: 4px 8px;
+	margin: 0;
+	cursor: pointer;
+	line-height: 1;
+	border-radius: 3px;
+}
+
+.yunseul-msg-action:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover, transparent);
+}
+
+.yunseul-msg-action:focus-visible {
+	outline: 2px solid var(--yunseul-accent);
+	outline-offset: 2px;
+}
+
+/* Per-bubble token meter. */
+.yunseul-msg-tokens {
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	color: var(--text-faint);
+	text-align: right;
+	margin-top: 4px;
+}
+
+/* Streaming caret. Width:2px fallback for fonts missing U+258F. */
+.yunseul-caret {
+	display: inline-block;
+	width: 2px;
+	height: 1.1em;
+	background-color: var(--text-normal);
+	vertical-align: text-bottom;
+	margin-left: 1px;
+	color: transparent;
+	overflow: hidden;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.yunseul-caret {
+		animation: yunseul-caret-blink var(--yunseul-caret-blink-rate) ease-in-out infinite;
+	}
+}
+
+@keyframes yunseul-caret-blink {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.3; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.yunseul-caret {
+		animation: none;
+		opacity: 1;
+	}
+}
+
+.yunseul-thinking-label {
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	color: var(--text-muted);
+	margin-left: 4px;
+}
+
+.yunseul-thinking-elapsed {
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	color: var(--text-muted);
+	margin-left: 4px;
+}
+
+/* ============================================================
+ * SOURCES block — typographic, semantic <ul>/<li>
+ * ============================================================ */
+.yunseul-sources {
+	display: flex;
+	flex-direction: column;
+	margin-top: 12px;
+}
+
+.yunseul-sources-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	background: transparent;
+	border: none;
+	padding: 0;
+	cursor: pointer;
+	width: 100%;
+	color: var(--text-muted);
+	margin-bottom: 12px;
+}
+
+.yunseul-sources-header:focus-visible {
+	outline: 2px solid var(--yunseul-accent);
+	outline-offset: 2px;
+}
+
+.yunseul-sources-label {
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: var(--yunseul-wordmark-tracking);
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+.yunseul-sources-rule {
+	flex: 1 1 auto;
+	height: 0;
+	border: none;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.yunseul-sources-count {
+	font-size: 11px;
+	color: var(--text-muted);
+}
+
+.yunseul-sources-chevron {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 12px;
+	color: var(--text-muted);
+	transition: transform 180ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.yunseul-sources-chevron {
+		transition: none;
+	}
+}
+
+.yunseul-sources.is-collapsed .yunseul-sources-chevron {
+	transform: rotate(-90deg);
+}
+
+.yunseul-sources-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.yunseul-sources.is-collapsed .yunseul-sources-list {
+	display: none;
+}
+
+.yunseul-sources-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	height: 22px;
+	padding: 0;
+}
+
+.yunseul-sources-bar {
+	display: inline-block;
+	width: 3px;
+	background: var(--yunseul-accent);
+	align-self: stretch;
+	flex: 0 0 auto;
+}
+
+.yunseul-sources-row:hover .yunseul-sources-bar {
+	opacity: 1 !important;
+}
+
+.yunseul-sources-name {
+	font-size: 13px;
+	color: var(--text-normal);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	text-decoration: none;
+	/* Name owns the natural-content width with shrink permission. The
+	 * `min-width: 0` is required for ellipsis to engage on flex items
+	 * (without it the item refuses to shrink below content). */
+	flex: 0 1 auto;
+	min-width: 0;
+}
+
+.yunseul-sources-name:hover {
+	color: var(--yunseul-accent-text);
+	text-decoration: underline;
+}
+
+.yunseul-sources-leaders {
+	/* `flex-basis: 0` so the dots' rendered content width doesn't claim
+	 * space from the name; leaders are pure leftover-space fillers. */
+	flex: 1 1 0;
+	min-width: 0;
+	font-family: var(--font-monospace);
+	color: var(--text-faint);
+	overflow: hidden;
+	white-space: nowrap;
+	letter-spacing: 0.1em;
+	user-select: none;
+}
+
+.yunseul-sources-row:hover .yunseul-sources-leaders {
+	border-bottom: 1px solid var(--text-faint);
+	color: transparent;
+	letter-spacing: 0;
+}
+
+.yunseul-sources-score {
+	font-size: 11px;
+	color: var(--text-faint);
+	min-width: 40px;
+	text-align: right;
+	flex: 0 0 auto;
+}
+
+.yunseul-sources-show-all {
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: var(--yunseul-role-tracking);
+	text-transform: uppercase;
+	color: var(--yunseul-accent-text);
+	background: transparent;
+	border: none;
+	padding: 4px 0;
+	margin-top: 6px;
+	cursor: pointer;
+	text-align: left;
+}
+
+.yunseul-sources-show-all:focus-visible {
+	outline: 2px solid var(--yunseul-accent);
+	outline-offset: 2px;
+}
+
+/* ============================================================
+ * Composer — focus-as-one frame, square corners, mono SEND
+ * ============================================================ */
+.yunseul-composer {
+	padding: 16px 12px 12px 12px;
+	display: flex;
+	flex-direction: column;
+	gap: 0;
+}
+
+.yunseul-composer-frame {
+	display: flex;
+	flex-direction: column;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	padding: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.yunseul-composer-frame {
+		transition: border-color 120ms ease;
+	}
+}
+
+.yunseul-composer-frame:focus-within {
+	/* Border-color change alone provides the focus indicator — the
+	 * earlier outline + 2px offset appeared as a 4px visual expansion
+	 * the moment the textarea got focus, reading as "the composer
+	 * grew when I typed". WCAG 2.4.7 met by the contrast change. */
+	border-color: var(--yunseul-accent);
+}
+
+.yunseul-textarea {
+	width: 100%;
+	resize: none;
+	/* Fixed-height: textarea no longer auto-grows on typing, which
+	 * was pushing the strip/context down and making the bottom of
+	 * the composer "grow". !important needed because ChatComposer's
+	 * resize() sets inline `style="height: NNNpx"` on every keystroke
+	 * and inline beats external CSS in the cascade. Content overflows
+	 * internally now. */
+	height: 72px !important;
+	min-height: 72px !important;
+	max-height: 72px !important;
+	font-family: var(--font-text);
+	font-size: 13.5px;
+	line-height: 1.55;
+	padding: 8px 10px;
+	background-color: transparent;
+	color: var(--text-normal);
+	border: none;
+	outline: none;
+	overflow-y: auto;
+}
+
+.yunseul-textarea::placeholder {
+	font-style: italic;
+	color: var(--text-faint);
+}
+
+.yunseul-composer-strip {
+	display: flex;
+	align-items: center;
+	min-height: 48px;
+	padding: 10px 10px;
+	border-top: 1px solid var(--background-modifier-border);
+	gap: 12px;
+}
+
+.yunseul-composer-slash-hint {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	color: var(--text-faint);
+	flex: 1 1 auto;
+	overflow: hidden;
+	max-height: 24px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.yunseul-composer-slash-hint {
+		transition: opacity 180ms ease, max-height 180ms ease;
+	}
+}
+
+/* Slash hint stays visible during typing — collapsing it caused
+ * a layout shift between non-typed and typed states. */
+
+.yunseul-slash-badge {
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	color: var(--text-muted);
+	background: var(--background-modifier-form-field);
+	padding: 1px 4px;
+	border-radius: 2px;
+}
+
+.yunseul-composer-send-hint {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-left: auto;
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	color: var(--text-faint);
+}
+
+.yunseul-send-btn {
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: var(--yunseul-role-tracking);
+	text-transform: uppercase;
+	height: 28px;
+	padding: 0 14px;
+	background: var(--yunseul-accent);
+	color: var(--yunseul-accent-fg);
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.yunseul-send-btn:focus-visible {
+	outline: 2px solid var(--yunseul-accent);
+	outline-offset: 2px;
+}
+
+.yunseul-send-btn.is-streaming {
+	background: var(--background-modifier-error);
+	color: var(--text-on-accent);
+}
+
+.yunseul-send-btn.is-disabled {
+	background: var(--background-modifier-form-field);
+	color: var(--text-faint);
+	cursor: not-allowed;
+}
+
+.yunseul-send-glyph {
+	font-size: 9px;
+	line-height: 1;
+}
+
+/* Context affordance row — bound-file pill + token meter. */
+.yunseul-composer-context {
+	display: flex;
+	align-items: center;
+	min-height: 30px;
+	padding: 2px 10px;
+	border-top: 1px solid var(--background-modifier-border);
+	gap: 12px;
+	/* Always visible — was opacity:0 with reveal on focus/typing/bound,
+	 * which created a visual discontinuity between non-typed and typed
+	 * states. Showing the bind/token row consistently is cleaner. */
+}
+
+/* Reduced-motion override removed — context row is always visible
+ * now, so there's no opacity transition to suppress. */
+
+/* Pill is now a role=group container (was <button>) so the change /
+ * unbind controls inside are valid sibling <button>s. Visual styling
+ * stays on the container; focus rings live on the inner buttons. */
+.yunseul-context-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	color: var(--text-muted);
+	padding: 10px 10px;
+	background: var(--background-modifier-form-field, transparent);
+	border-radius: 4px;
+	line-height: 1.6;
+}
+
+.yunseul-context-change {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	background: transparent;
+	border: none;
+	color: inherit;
+	font: inherit;
+	padding: 3px 6px;
+	margin: 0;
+	cursor: pointer;
+	line-height: inherit;
+	border-radius: 3px;
+}
+
+.yunseul-context-change:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover, transparent);
+}
+
+.yunseul-context-change:focus-visible {
+	outline: 2px solid var(--yunseul-accent);
+	outline-offset: 2px;
+}
+
+.yunseul-context-unbind {
+	background: transparent;
+	border: none;
+	color: var(--text-faint);
+	cursor: pointer;
+	padding: 4px 8px;
+	font-family: var(--font-monospace);
+	font-size: 13px;
+	line-height: 1;
+	border-radius: 3px;
+}
+
+.yunseul-context-unbind:hover {
+	color: var(--text-normal);
+	background: var(--background-modifier-hover, transparent);
+}
+
+.yunseul-context-unbind:focus-visible {
+	outline: 2px solid var(--yunseul-accent);
+	outline-offset: 2px;
+}
+
+.yunseul-context-tokens {
+	margin-left: auto;
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	color: var(--text-muted);
+}
+
+/* ============================================================
+ * Empty state
+ * ============================================================ */
+.yunseul-empty {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 24px;
+	padding: 32px 16px;
+	background: transparent;
+}
+
+.yunseul-empty-logo {
+	width: 96px;
+	height: 96px;
+	object-fit: contain;
+	margin-bottom: -8px;
+	opacity: 0.95;
+	user-select: none;
+	-webkit-user-drag: none;
+}
+
+.yunseul-empty-bound {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	color: var(--text-muted);
+	padding: 2px 8px;
+	background: var(--background-modifier-form-field, transparent);
+	box-shadow: inset 0 0 0 1px var(--background-modifier-border);
+	border-radius: 2px;
+}
+
+.yunseul-empty-tagline {
+	font-family: var(--font-monospace);
+	font-size: 13px;
+	font-weight: 500;
+	letter-spacing: var(--yunseul-wordmark-tracking);
+	text-transform: uppercase;
+	color: var(--text-muted);
+	margin: 0;
+	text-align: center;
+}
+
+.yunseul-empty-subtagline {
+	font-family: var(--font-text);
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-faint);
+	text-align: center;
+	max-width: 320px;
+	margin: 0;
+	line-height: 1.5;
+}
+
+.yunseul-empty-suggestions {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	width: 100%;
+	max-width: 360px;
+}
+
+.yunseul-empty-suggestion {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	height: 28px;
+	width: 100%;
+	padding: 0 8px;
+	background: transparent;
+	border: none;
+	border-left: 2px solid transparent;
+	cursor: pointer;
+	text-align: left;
+	color: var(--text-normal);
+}
+
+.yunseul-empty-suggestion:hover {
+	background: var(--background-modifier-hover);
+	border-left-color: var(--yunseul-accent);
+}
+
+.yunseul-empty-suggestion:hover .yunseul-empty-text {
+	text-decoration: underline;
+}
+
+.yunseul-empty-suggestion:focus-visible {
+	outline: 2px solid var(--yunseul-accent);
+	outline-offset: 2px;
+}
+
+.yunseul-empty-num {
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	letter-spacing: var(--yunseul-role-tracking);
+	color: var(--text-faint);
+}
+
+.yunseul-empty-text {
+	font-family: var(--font-text);
+	font-size: 14px;
+	color: var(--text-normal);
+}
+
+.yunseul-empty-hint {
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	color: var(--text-faint);
+	text-align: center;
+	margin: 0;
+}
+
+.yunseul-empty-hint kbd {
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	background: var(--background-modifier-form-field);
+	padding: 1px 4px;
+	border-radius: 2px;
+	border: 1px solid var(--background-modifier-border);
+}
+
+.yunseul-empty-version {
+	font-family: var(--font-monospace);
+	font-size: 10px;
+	color: var(--text-faint);
+	letter-spacing: var(--yunseul-wordmark-tracking);
+	text-transform: uppercase;
+	text-align: center;
+	margin: 0;
+}
+
+/* Visible focus ring across all interactive controls in the panel. */
+.yunseul-chat-root :focus-visible,
+.yunseul-append-modal :focus-visible {
+	outline: 2px solid var(--yunseul-accent);
+	outline-offset: 2px;
+}
+
+.yunseul-focus-ring:focus,
+.yunseul-focus-ring:focus-visible {
+	outline: 2px solid var(--yunseul-accent);
+	outline-offset: 2px;
+}
+
+/* ============================================================
+ * Modals
+ * ============================================================ */
+.yunseul-append-modal {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.yunseul-append-target {
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.yunseul-append-label {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: var(--yunseul-role-tracking);
+}
+
+.yunseul-append-preview {
+	max-height: 240px;
+	overflow-y: auto;
+	background-color: var(--background-secondary);
+	padding: 8px;
+	border-radius: 4px;
+	white-space: pre-wrap;
+}
+
+.yunseul-append-options {
+	font-size: var(--font-ui-small);
+}
+
+.yunseul-append-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+.yunseul-index-modal {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.yunseul-index-modal-note {
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.yunseul-index-modal-warning {
+	font-size: var(--font-ui-small);
+	color: var(--text-warning);
+	background: var(--background-modifier-error);
+	border-left: 3px solid var(--text-warning);
+	padding: 6px 10px;
+	border-radius: 4px;
+}
+
+.yunseul-index-modal-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 8px;
+	flex-wrap: wrap;
+}
+
+.yunseul-notice-cancel {
+	margin-left: 8px;
+	padding: 2px 8px;
+}
+
+/* ============================================================
+ * Settings tab
+ * ============================================================ */
+.yunseul-settings-summary {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px 14px;
+	margin-bottom: 16px;
+	background: var(--background-secondary);
+	border-radius: 4px;
+}
+
+.yunseul-settings-summary-label {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-family: var(--font-monospace);
+	font-size: 11px;
+	font-weight: 500;
+	letter-spacing: var(--yunseul-wordmark-tracking);
+	text-transform: uppercase;
+	color: var(--text-muted);
+}
+
+.yunseul-settings-summary .yunseul-status-dot {
+	box-shadow: 0 0 0 2px var(--yunseul-accent-muted);
+}
+
+.yunseul-settings-summary-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 24px;
+}
+
+.yunseul-settings-summary-col {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.yunseul-settings-summary-col-label {
+	font-family: var(--font-monospace);
+	font-size: 10px;
+	letter-spacing: var(--yunseul-role-tracking);
+	text-transform: uppercase;
+	color: var(--text-faint);
+}
+
+.yunseul-settings-summary-col-value {
+	font-size: 13px;
+	color: var(--text-normal);
+}
+
+.yunseul-section-heading {
+	border-top: 1px solid var(--background-modifier-border);
+	padding-top: 24px;
+	padding-bottom: 12px;
+	margin-top: 12px;
+}
+
+.yunseul-section-heading .setting-item-name {
+	letter-spacing: var(--yunseul-wordmark-tracking);
+	text-transform: uppercase;
+}
+
+/* Inline warning callout (audit A8). Used by settings.ts:602 under the
+ * API-key field to flag that data.json stores the key in plain text.
+ * Visually matches the index-modal-warning palette so the user reads it
+ * as the same severity. color-mix() keeps the tint theme-aware. */
+.yunseul-warning {
+	color: var(--text-warning);
+	background: color-mix(in srgb, var(--background-modifier-error) 8%, transparent);
+	border-left: 3px solid var(--text-warning);
+	padding: 6px 10px;
+	border-radius: 4px;
+	font-size: var(--font-ui-small);
+}
+
+/* Inline status/result text under each Test button (audit A8). The
+ * "ok" / "bad" modifiers re-color the text; the default sits at
+ * --text-muted. settings.ts toggles the modifier classes when a probe
+ * completes. */
+.yunseul-test-status {
+	margin-top: 6px;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.yunseul-test-status.yunseul-status-ok {
+	color: var(--color-green, #2ea043);
+}
+
+.yunseul-test-status.yunseul-status-bad {
+	color: var(--text-error, var(--color-red, #cf222e));
+}
+
+/* Inline help block (audit A8). Used by settings.ts:540 to surface the
+ * Claude Code auth docs link under the Test button. Smaller than body
+ * text and muted so it reads as a secondary affordance. */
+.yunseul-help {
+	margin-top: 8px;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.yunseul-help a {
+	color: var(--yunseul-accent-text);
+}

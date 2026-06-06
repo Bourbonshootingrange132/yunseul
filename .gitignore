@@ -1,0 +1,43 @@
+# vscode
+.vscode
+
+# Intellij
+*.iml
+.idea
+
+# npm
+node_modules
+
+# Don't include the compiled main.js file in the repo.
+# They should be uploaded to GitHub releases instead.
+main.js
+
+# Exclude sourcemaps
+*.map
+
+# obsidian
+data.json
+
+# Exclude macOS Finder (System Explorer) View States
+.DS_Store
+
+# Yunseul runtime/persisted state — never commit
+sessions/
+runtime/
+.yunseul/
+
+# Coverage output
+coverage/
+.nyc_output/
+
+# Macros / editor leftovers
+*.swp
+
+# Internal planning + audit notes. Kept locally for reference; not
+# pushed because they are not part of the plugin's public surface.
+PLAN.md
+PLAN-draft.md
+AUDIT-REPORT.md
+FINAL-REPORT.md
+MORNING-SUMMARY.md
+AGENTS.md
