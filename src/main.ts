@@ -598,12 +598,9 @@ export default class YunseulPlugin extends Plugin {
 		// Wire a Cancel affordance into the persistent Notice. The X
 		// glyph rendered by Obsidian for `new Notice(..., 0)` only
 		// hides the toast; a real cancel must abort the build loop.
-		// We use `noticeEl` (the deprecated alias of `messageEl`)
-		// because `messageEl` requires Obsidian 1.8.7 and our
-		// minAppVersion is 1.7.2. The
-		// `@typescript-eslint/no-deprecated` rule is disabled for
-		// this file via the eslint config override.
-		const noticeEl = notice.noticeEl;
+		// `messageEl` is the current API (added in Obsidian 1.8.7,
+		// covered by our minAppVersion 1.13.0).
+		const noticeEl = notice.messageEl;
 		let cancelBtn: HTMLButtonElement | null = null;
 		if (noticeEl !== undefined) {
 			cancelBtn = noticeEl.createEl('button', {

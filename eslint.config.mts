@@ -74,17 +74,13 @@ export default tseslint.config(
 		},
 	},
 	{
-		// main.ts and settings.ts call three deprecated Obsidian APIs:
-		//   * Notice#noticeEl     (replaced by messageEl in 1.8.7)
-		//   * PluginSettingTab#display() as a re-render seam (documented
-		//     pattern; the deprecation tag is on the override surface,
-		//     not the call)
-		//   * ButtonComponent#setWarning() (replaced by setDestructive
-		//     in 1.13)
-		// We ship minAppVersion 1.7.2, so the modern replacements are
-		// not yet available. This override removes the need for per-line
-		// eslint-disable comments until we bump minAppVersion.
-		files: ['src/main.ts', 'src/settings.ts'],
+		// settings.ts still calls the deprecated PluginSettingTab#display()
+		// as a re-render seam. The replacement getSettingDefinitions API
+		// (added in 1.13.0) would require a wholesale rewrite from the
+		// imperative DOM-building pattern to a declarative description.
+		// Tracked as a future refactor; the override exists so the warning
+		// doesn't drown out other lint output.
+		files: ['src/settings.ts'],
 		rules: {
 			'@typescript-eslint/no-deprecated': 'off',
 		},

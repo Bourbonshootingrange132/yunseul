@@ -705,13 +705,9 @@ export class YunseulSettingTab extends PluginSettingTab {
 			.addButton((btn) =>
 				btn
 					.setButtonText('Reset')
-					// setDestructive() is the modern API but requires
-					// Obsidian 1.13. We target minAppVersion 1.7.2 so
-					// we use the deprecated setWarning() form. The
-					// `@typescript-eslint/no-deprecated` rule is
-					// disabled for this file via the eslint config
-					// override.
-					.setWarning()
+					// setDestructive() is the current API (added in
+					// Obsidian 1.13.0, covered by our minAppVersion).
+					.setDestructive()
 					.onClick(() => {
 						// Surface the confirmation modal rather than
 						// destroying the index on a single mis-click.

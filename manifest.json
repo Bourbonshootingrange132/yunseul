@@ -1,8 +1,8 @@
 {
 	"id": "yunseul",
 	"name": "Yunseul",
-	"version": "0.1.1",
-	"minAppVersion": "1.7.2",
+	"version": "0.1.2",
+	"minAppVersion": "1.13.0",
 	"description": "Chat with your notes through local LM Studio or the Claude Code CLI — Yunseul (윤슬), sparkling ripples of clarity in your vault.",
 	"author": "zaemyung",
 	"authorUrl": "https://zaemyung.github.io/",
